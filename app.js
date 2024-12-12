@@ -7,7 +7,6 @@ app.use(express.json());
 
 const flowDefinitions = {};
 let currentNodeId = "";
-let currentPageId = "";
 
 app.post("/registration-flow", (req, res) => {
     const { appId, flowDefinition } = req.body;
@@ -37,7 +36,7 @@ app.post("/initiate", (req, res) => {
 app.post("/submit", (req, res) => {
     const { appId, flowId, action, inputs } = req.body;
     if (!appId || !flowId || !action) {
-        return res.status(400).json({ error: "appId, flowId, and actionId are required." });
+        return res.status(400).json({ error: "appId, flowId, and action are required." });
     }
 
     const def = flowDefinitions[appId];
@@ -50,7 +49,19 @@ app.post("/submit", (req, res) => {
         return res.status(404).json({ error: "Node not found." });
     }
 
-    const triggeredAction = currentNode.actions.find((a) => a.action.executors[0].name === action);
+    let triggeredAction = null;
+
+    currentNode.actions.map((a) => {
+        if (a.action.executors  && a.action.executors[0].name === action) {
+            triggeredAction = a;
+        }
+
+        if (a.action.type === action) {
+            triggeredAction = a;
+        }
+    });
+
+
     if (!triggeredAction) {
         return res.status(404).json({ error: "Action not found." });
     }
@@ -80,6 +91,8 @@ app.post("/submit", (req, res) => {
     if (!nextNodeId) {
         return res.status(500).json({ error: "No next or previous node available for action." });
     }
+
+    currentNodeId = nextNodeId;
 
     const response = buildFlowResponse(flowId, "INCOMPLETE", "REGISTRATION", def, nextNodeId);
     res.json(response);
